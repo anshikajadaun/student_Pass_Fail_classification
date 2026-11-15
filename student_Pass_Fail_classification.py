@@ -1,72 +1,95 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
 import os
 
-# ---------------- PAGE CONFIG ----------------
+# ==========================================
+# PAGE CONFIGURATION
+# ==========================================
+
 st.set_page_config(
-    page_title="Student Success Predictor",
+    page_title="Student Success AI",
     page_icon="🎓",
-    layout="centered"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# ---------------- CUSTOM CSS ----------------
+# ==========================================
+# CUSTOM CSS - UNIQUE COLOR THEME
+# ==========================================
+
 st.markdown("""
 <style>
 
 .stApp {
     background: linear-gradient(
         135deg,
-        #F3EEFF,
-        #E9F6FF,
-        #E9FFF6
+        #FFF5EB 0%,
+        #F1EDFF 50%,
+        #E8FAF2 100%
     );
-    color: #344477;
+    color: #51436F;
 }
 
 .block-container {
-    max-width: 850px;
-    padding-top: 1rem;
+    max-width: 1100px;
+    padding-top: 1.2rem;
     padding-bottom: 1rem;
 }
 
-h1, h2, h3 {
-    color: #40527D !important;
+h1, h2, h3, h4 {
+    color: #66518E !important;
 }
 
 p, label {
-    color: #526184 !important;
+    color: #62577A !important;
 }
 
 .hero {
     background: linear-gradient(
         110deg,
-        #DDD5FF,
-        #D9EEFF,
-        #D8F8E9
+        #FADCCB,
+        #E4DBFF,
+        #D8F4E6
     );
-    padding: 20px;
-    border-radius: 20px;
+    padding: 22px;
+    border-radius: 22px;
     text-align: center;
-    margin-bottom: 18px;
     border: 1px solid white;
+    margin-bottom: 18px;
 }
 
 .hero h1 {
-    color: #40527D !important;
-    font-size: 34px;
+    font-size: 36px;
+    color: #65518A !important;
     margin-bottom: 5px;
 }
 
 .hero p {
-    font-size: 14px;
+    color: #695C80 !important;
+}
+
+.card {
+    background: rgba(255,255,255,0.90);
+    padding: 20px;
+    border-radius: 18px;
+    border: 1px solid #E9DDF5;
+    margin-bottom: 12px;
+}
+
+div[data-testid="stMetric"] {
+    background: #FFFFFF;
+    border: 1px solid #E8DDF5;
+    padding: 16px;
+    border-radius: 16px;
 }
 
 div.stButton > button {
     background: linear-gradient(
         90deg,
-        #8878D9,
-        #64A9DF
+        #9275C8,
+        #70BFA4
     );
     color: white;
     border: none;
@@ -75,223 +98,501 @@ div.stButton > button {
     font-weight: bold;
 }
 
-div[data-testid="stMetric"] {
-    background: white;
-    border: 1px solid #DCDFF5;
-    border-radius: 15px;
-    padding: 15px;
+div.stButton > button:hover {
+    background: linear-gradient(
+        90deg,
+        #795DB0,
+        #52A98B
+    );
+    color: white;
+    border: none;
 }
 
-.result-card {
+div[data-baseweb="input"] > div,
+div[data-baseweb="select"] > div {
+    background-color: white;
+    border-radius: 10px;
+}
+
+.result-box {
     background: white;
-    padding: 20px;
+    padding: 22px;
     border-radius: 18px;
-    border: 1px solid #DCDFF5;
+    border: 1px solid #E4D9F2;
     text-align: center;
-    margin-top: 15px;
 }
 
 .footer {
     text-align: center;
-    color: #7180A5;
-    font-size: 12px;
+    color: #817494;
+    font-size: 13px;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
 
-# ---------------- HEADER ----------------
+# ==========================================
+# HEADER
+# ==========================================
+
 st.markdown("""
 <div class="hero">
-    <h1>🎓 Student Success Predictor</h1>
-    <p>Discover student performance using Machine Learning</p>
-    <p>✨ Learn Better • Perform Better • Succeed Better</p>
+    <h1>🎓 Student Success AI</h1>
+    <p>Smart Academic Performance Prediction System</p>
+    <p>✨ Predict • Analyze • Improve • Succeed</p>
 </div>
 """, unsafe_allow_html=True)
 
 
-# ---------------- LOAD MODEL ----------------
+# ==========================================
+# LOAD TRAINED MODEL
+# ==========================================
+
 @st.cache_resource
 def load_model():
     return joblib.load("student_Pass_Fail_classification.pkl")
 
 
 if not os.path.exists("student_Pass_Fail_classification.pkl"):
-    st.error("Model file nahi mili. PKL file GitHub par upload karo.")
+    st.error("Model file not found. Please upload the PKL file.")
     st.stop()
 
 try:
     model = load_model()
 except Exception as e:
-    st.error(f"Model load nahi hua: {e}")
+    st.error(f"Unable to load model: {e}")
     st.stop()
 
 
-# ---------------- INPUT SECTION ----------------
-st.subheader("✨ Enter Student Details")
+# ==========================================
+# SESSION STATE
+# ==========================================
 
-col1, col2 = st.columns(2)
-
-with col1:
-    study_hours = st.number_input(
-        "📚 Daily Study Hours",
-        min_value=0.0,
-        max_value=24.0,
-        value=6.0,
-        step=0.5
-    )
-
-    attendance = st.number_input(
-        "📅 Attendance (%)",
-        min_value=0,
-        max_value=100,
-        value=78,
-        step=1
-    )
-
-with col2:
-    previous_marks = st.number_input(
-        "📝 Previous Marks (%)",
-        min_value=0,
-        max_value=100,
-        value=64,
-        step=1
-    )
-
-st.caption("Enter student information to predict the academic result.")
+if "history" not in st.session_state:
+    st.session_state.history = []
 
 
-# ---------------- PREDICTION ----------------
-if st.button("✨ Predict Student Result", use_container_width=True):
+# ==========================================
+# MODEL INFORMATION
+# ==========================================
 
-    student_data = pd.DataFrame({
-        "Study_Hours": [study_hours],
-        "Attendance": [attendance],
-        "Previous_Marks": [previous_marks]
-    })
+st.markdown("### 🌷 Student Performance Center")
 
-    prediction = model.predict(student_data)[0]
+tab1, tab2, tab3 = st.tabs([
+    "🎯 Single Prediction",
+    "📂 Batch Prediction",
+    "📊 History & Reports"
+])
 
-    probabilities = model.predict_proba(student_data)[0]
 
-    class_probabilities = dict(
-        zip(model.classes_, probabilities)
-    )
+# ==========================================
+# TAB 1 - SINGLE PREDICTION
+# ==========================================
 
-    pass_probability = class_probabilities.get(1, 0) * 100
-    fail_probability = class_probabilities.get(0, 0) * 100
+with tab1:
 
-    result = "Pass" if prediction == 1 else "Fail"
+    left, right = st.columns([1, 1], gap="large")
 
-    # Save history
-    if "history" not in st.session_state:
-        st.session_state.history = []
+    with left:
 
-    st.session_state.history.append({
-        "Study Hours": study_hours,
-        "Attendance": attendance,
-        "Previous Marks": previous_marks,
-        "Prediction": result,
-        "Pass Probability (%)": round(pass_probability, 2),
-        "Fail Probability (%)": round(fail_probability, 2)
-    })
+        st.markdown("#### 📝 Student Details")
 
-    # ---------------- RESULT ----------------
-    st.markdown("---")
-    st.subheader("💜 Prediction Result")
+        study_hours = st.number_input(
+            "📚 Daily Study Hours",
+            min_value=0.0,
+            max_value=24.0,
+            value=6.0,
+            step=0.5
+        )
 
-    if prediction == 1:
-        st.success("🎉 Congratulations! Predicted Result: PASS")
-    else:
-        st.warning("📖 Predicted Result: FAIL")
+        attendance = st.number_input(
+            "📅 Attendance Percentage",
+            min_value=0,
+            max_value=100,
+            value=78,
+            step=1
+        )
 
-    r1, r2 = st.columns(2)
+        previous_marks = st.number_input(
+            "📝 Previous Marks",
+            min_value=0,
+            max_value=100,
+            value=64,
+            step=1
+        )
 
-    with r1:
-        st.metric(
+        threshold = st.slider(
+            "🎚️ Pass Decision Threshold",
+            min_value=10,
+            max_value=90,
+            value=50,
+            step=5,
+            help="Pass probability must reach this threshold."
+        )
+
+        predict = st.button(
+            "✨ Analyze Student Performance",
+            use_container_width=True
+        )
+
+    with right:
+
+        st.markdown("#### 💜 Performance Guide")
+
+        st.markdown("""
+        <div class="card">
+            <h4>📚 Study Hours</h4>
+            <p>Daily study time of the student.</p>
+            <hr>
+            <h4>📅 Attendance</h4>
+            <p>Student's attendance percentage.</p>
+            <hr>
+            <h4>📝 Previous Marks</h4>
+            <p>Marks obtained in previous examinations.</p>
+            <hr>
+            <h4>🤖 AI Analysis</h4>
+            <p>Logistic Regression predicts the academic result.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ======================================
+    # PREDICTION RESULT
+    # ======================================
+
+    if predict:
+
+        student = pd.DataFrame({
+            "Study_Hours": [study_hours],
+            "Attendance": [attendance],
+            "Previous_Marks": [previous_marks]
+        })
+
+        probabilities = model.predict_proba(student)[0]
+
+        classes = list(model.classes_)
+
+        pass_probability = (
+            probabilities[classes.index(1)] * 100
+            if 1 in classes else 0
+        )
+
+        fail_probability = (
+            probabilities[classes.index(0)] * 100
+            if 0 in classes else 0
+        )
+
+        # Custom threshold
+        prediction = int(
+            pass_probability >= threshold
+        )
+
+        result = "Pass" if prediction == 1 else "Fail"
+
+        confidence = max(
+            pass_probability,
+            fail_probability
+        )
+
+        st.session_state.history.append({
+            "Study Hours": study_hours,
+            "Attendance": attendance,
+            "Previous Marks": previous_marks,
+            "Prediction": result,
+            "Pass Probability": round(pass_probability, 2),
+            "Fail Probability": round(fail_probability, 2)
+        })
+
+        st.markdown("---")
+
+        st.markdown("### 🎉 Analysis Result")
+
+        if prediction == 1:
+            st.success("🌟 Predicted Result: PASS")
+        else:
+            st.warning("📖 Predicted Result: FAIL")
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric(
             "🟢 Pass Probability",
             f"{pass_probability:.2f}%"
         )
 
-    with r2:
-        st.metric(
+        c2.metric(
             "🔴 Fail Probability",
             f"{fail_probability:.2f}%"
         )
 
-    # Probability bars
-    st.write("### 📊 Performance Probability")
+        c3.metric(
+            "🎯 Confidence Indicator",
+            f"{confidence:.2f}%"
+        )
 
-    st.write("Pass")
-    st.progress(int(round(pass_probability)))
+        st.markdown("#### 📊 Probability Analysis")
 
-    st.write("Fail")
-    st.progress(int(round(fail_probability)))
+        st.write("Pass Probability")
+        st.progress(int(round(pass_probability)))
 
-    # ---------------- SUGGESTIONS ----------------
-    st.subheader("💡 Student Improvement Tips")
+        st.write("Fail Probability")
+        st.progress(int(round(fail_probability)))
 
-    tips = []
+        st.caption(
+            f"Decision threshold: {threshold}% | "
+            f"Prediction: {result}"
+        )
 
-    if study_hours < 5:
-        tips.append("📚 Try to increase your daily study hours.")
+        # SMART SUGGESTIONS
 
-    if attendance < 75:
-        tips.append("📅 Improve your class attendance.")
+        st.markdown("### 💡 Smart Improvement Suggestions")
 
-    if previous_marks < 50:
-        tips.append("📝 Focus on improving your previous marks.")
+        tips = []
 
-    if not tips:
-        tips.append("🌟 Keep maintaining your good study routine!")
+        if study_hours < 5:
+            tips.append(
+                "📚 Increase daily study time gradually."
+            )
 
-    for tip in tips:
-        st.info(tip)
+        if attendance < 75:
+            tips.append(
+                "📅 Improve attendance and attend classes regularly."
+            )
 
-    st.caption(
-        "Note: This prediction is based on a trained ML model. "
-        "It is an estimate, not a guaranteed academic result."
+        if previous_marks < 50:
+            tips.append(
+                "📝 Focus on revision and practice tests."
+            )
+
+        if study_hours >= 5 and attendance >= 75 and previous_marks >= 50:
+            tips.append(
+                "🌟 Maintain your current study routine."
+            )
+
+        for tip in tips:
+            st.info(tip)
+
+        st.caption(
+            "This is an ML-based estimate, not a guaranteed "
+            "academic result. Confidence is the model's "
+            "highest class probability."
+        )
+
+
+# ==========================================
+# TAB 2 - BATCH PREDICTION
+# ==========================================
+
+with tab2:
+
+    st.markdown("### 📂 Multiple Student Prediction")
+
+    st.write(
+        "Upload a CSV file containing multiple students' details."
     )
 
-
-# ---------------- PREDICTION HISTORY ----------------
-if "history" in st.session_state and st.session_state.history:
-
-    st.markdown("---")
-    st.subheader("📋 Prediction History")
-
-    history_df = pd.DataFrame(st.session_state.history)
-
-    st.dataframe(
-        history_df,
-        use_container_width=True,
-        hide_index=True
-    )
-
-    csv = history_df.to_csv(index=False).encode("utf-8")
+    sample = pd.DataFrame({
+        "Study_Hours": [6, 3, 8],
+        "Attendance": [80, 55, 90],
+        "Previous_Marks": [70, 35, 85]
+    })
 
     st.download_button(
-        label="⬇️ Download Prediction History",
-        data=csv,
-        file_name="student_prediction_history.csv",
-        mime="text/csv",
-        use_container_width=True
+        "⬇️ Download Sample CSV",
+        sample.to_csv(index=False).encode("utf-8"),
+        "student_sample.csv",
+        "text/csv"
     )
 
-    if st.button("🗑️ Clear History"):
-        st.session_state.history = []
-        st.rerun()
+    uploaded_file = st.file_uploader(
+        "Upload Student CSV",
+        type=["csv"]
+    )
+
+    if uploaded_file is not None:
+
+        try:
+
+            batch_data = pd.read_csv(uploaded_file)
+
+            required = [
+                "Study_Hours",
+                "Attendance",
+                "Previous_Marks"
+            ]
+
+            if not all(
+                col in batch_data.columns
+                for col in required
+            ):
+                st.error(
+                    "CSV must contain Study_Hours, "
+                    "Attendance and Previous_Marks columns."
+                )
+
+            else:
+
+                batch_data = batch_data.copy()
+
+                for col in required:
+                    batch_data[col] = pd.to_numeric(
+                        batch_data[col],
+                        errors="coerce"
+                    )
+
+                valid = (
+                    batch_data[required].notna().all(axis=1)
+                    & batch_data["Study_Hours"].between(0, 24)
+                    & batch_data["Attendance"].between(0, 100)
+                    & batch_data["Previous_Marks"].between(0, 100)
+                )
+
+                valid_data = batch_data.loc[valid].copy()
+
+                if len(valid_data) == 0:
+
+                    st.error(
+                        "CSV mein valid student records nahi mile."
+                    )
+
+                else:
+
+                    X_batch = valid_data[required]
+
+                    probabilities = model.predict_proba(X_batch)
+
+                    classes = list(model.classes_)
+
+                    pass_prob = (
+                        probabilities[:, classes.index(1)] * 100
+                        if 1 in classes
+                        else np.zeros(len(valid_data))
+                    )
+
+                    fail_prob = (
+                        probabilities[:, classes.index(0)] * 100
+                        if 0 in classes
+                        else np.zeros(len(valid_data))
+                    )
+
+                    batch_data.loc[valid, "Pass Probability (%)"] = np.round(
+                        pass_prob, 2
+                    )
+
+                    batch_data.loc[valid, "Fail Probability (%)"] = np.round(
+                        fail_prob, 2
+                    )
+
+                    batch_data.loc[valid, "Prediction"] = np.where(
+                        pass_prob >= 50,
+                        "Pass",
+                        "Fail"
+                    )
+
+                    st.success(
+                        f"{len(valid_data)} students analyzed successfully!"
+                    )
+
+                    st.dataframe(
+                        batch_data,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                    st.metric(
+                        "Predicted Pass Students",
+                        int((pass_prob >= 50).sum())
+                    )
+
+                    st.metric(
+                        "Predicted Fail Students",
+                        int((pass_prob < 50).sum())
+                    )
+
+                    st.download_button(
+                        "⬇️ Download Complete Results",
+                        batch_data.to_csv(index=False).encode("utf-8"),
+                        "student_batch_results.csv",
+                        "text/csv",
+                        use_container_width=True
+                    )
+
+                    if (~valid).any():
+                        st.warning(
+                            f"{int((~valid).sum())} invalid rows "
+                            "were not predicted."
+                        )
+
+        except Exception as e:
+            st.error(f"Unable to process CSV: {e}")
 
 
-# ---------------- FOOTER ----------------
+# ==========================================
+# TAB 3 - HISTORY AND REPORTS
+# ==========================================
+
+with tab3:
+
+    st.markdown("### 📊 Prediction History")
+
+    if st.session_state.history:
+
+        history_df = pd.DataFrame(
+            st.session_state.history
+        )
+
+        total = len(history_df)
+
+        passed = (
+            history_df["Prediction"] == "Pass"
+        ).sum()
+
+        failed = (
+            history_df["Prediction"] == "Fail"
+        ).sum()
+
+        a, b, c = st.columns(3)
+
+        a.metric("Total Predictions", total)
+        b.metric("Pass Predictions", int(passed))
+        c.metric("Fail Predictions", int(failed))
+
+        st.dataframe(
+            history_df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.download_button(
+            "⬇️ Download History Report",
+            history_df.to_csv(index=False).encode("utf-8"),
+            "student_history.csv",
+            "text/csv",
+            use_container_width=True
+        )
+
+        if st.button("🗑️ Clear Prediction History"):
+            st.session_state.history = []
+            st.rerun()
+
+    else:
+
+        st.info(
+            "No prediction history available. "
+            "Make your first prediction!"
+        )
+
+
+# ==========================================
+# FOOTER
+# ==========================================
+
 st.markdown("---")
 
 st.markdown("""
 <div class="footer">
-    <h4>💜 Student Success Predictor</h4>
+    <h4>💜 Student Success AI</h4>
     Built with Python | Streamlit | Logistic Regression
     <br>
-    Making Learning Smarter with Machine Learning ✨
+    Making Education Smarter with Machine Learning ✨
 </div>
 """, unsafe_allow_html=True)
